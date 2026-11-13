@@ -2,9 +2,11 @@ name: Weekly Garmin & Drive Hybrid Sync
 
 on:
   schedule:
-    # Runs every Sunday at 8:00 PM AST (Monday 00:00 UTC)
     - cron: '0 0 * * 1'
-  workflow_dispatch: # Allows manual 1-click trigger from GitHub mobile/web
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   sync-training-plan:
@@ -28,3 +30,10 @@ jobs:
           GARMIN_STATE_B64: ${{ secrets.GARMIN_STATE_B64 }}
           GOOGLE_TOKEN_B64: ${{ secrets.GOOGLE_TOKEN_B64 }}
         run: python update_browser_pipeline.py
+
+      - name: Publish Updated Web Dashboard
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html
+          git diff --staged --quiet || (git commit -m "Auto-update live training dashboard" && git push)
