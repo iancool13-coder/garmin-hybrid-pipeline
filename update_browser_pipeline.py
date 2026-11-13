@@ -422,16 +422,31 @@ def run_pipeline():
             generate_pdf(training_plan)
             if creds:
                 service = build("drive", "v3", credentials=creds)
-                file_metadata = {"name": "Training_Plan_Week1.pdf"}
+                folder_name = "training plans"
+                folder_res = service.files().list(
+                    q=f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+                    fields="files(id)"
+                ).execute()
+                folders = folder_res.get("files", [])
+                if folders:
+                    folder_id = folders[0]["id"]
+                else:
+                    folder_meta = {"name": folder_name, "mimeType": "application/vnd.google-apps.folder"}
+                    folder_id = service.files().create(body=folder_meta, fields="id").execute().get("id")
+
                 media = MediaFileUpload(PDF_FILE, mimetype="application/pdf")
-                results = service.files().list(q="name='Training_Plan_Week1.pdf'", fields="files(id)").execute()
+                results = service.files().list(
+                    q=f"name='Training_Plan_Week1.pdf' and '{folder_id}' in parents and trashed=false",
+                    fields="files(id)"
+                ).execute()
                 files = results.get("files", [])
                 if files:
                     service.files().update(fileId=files[0]["id"], media_body=media).execute()
-                    print("Updated Training_Plan_Week1.pdf in Google Drive.")
+                    print(f"Updated Training_Plan_Week1.pdf inside '{folder_name}'.")
                 else:
+                    file_metadata = {"name": "Training_Plan_Week1.pdf", "parents": [folder_id]}
                     service.files().create(body=file_metadata, media_body=media, fields="id").execute()
-                    print("Created Training_Plan_Week1.pdf in Google Drive.")
+                    print(f"Created Training_Plan_Week1.pdf inside '{folder_name}'.")
 
         except Exception as e:
             print(f"Pipeline error: {e}")
