@@ -99,6 +99,92 @@ def generate_web_dashboard(training_plan, sync_stats=None):
         f.write(html)
     print("Web dashboard generated at docs/index.html")
 
+HTML_FILE = os.path.join(BASE_DIR, "docs", "index.html")
+
+def generate_web_dashboard(training_plan, sync_stats=None):
+    os.makedirs(os.path.dirname(HTML_FILE), exist_ok=True)
+    meta = training_plan.get("_meta", {})
+    telemetry = meta.get("telemetry", {})
+    sync_stats = sync_stats or {}
+    hm_sec = meta.get("hm_seconds", 7070)
+    hrs, rem = divmod(hm_sec, 3600)
+    mins, secs = divmod(rem, 60)
+    proj_hm = f"{hrs}:{mins:02d}:{secs:02d}"
+
+    cards_html = ""
+    for day, data in training_plan.items():
+        if day.startswith("_"):
+            continue
+        is_run = data["type"] == "run"
+        badge = "GARMIN RUN" if is_run else "HOME LIFT"
+        accent = "#3b82f6" if is_run else "#f59e0b"
+        pace_line = f"<div class=\"pace\">Target Pace: {data['target_pace']}</div>" if is_run else "<div class=\"pace lift-note\">Power Rack • 225 lb Barbell • Landmine</div>"
+        cards_html += f"""
+        <div class="card" style="border-left: 4px solid {accent};">
+            <div class="card-top">
+                <div>
+                    <span class="day">{day}</span>
+                    <span class="badge" style="background:{accent};">{badge}</span>
+                </div>
+                <span class="dist" style="color:{accent};">{data.get("distance_label", "")}</span>
+            </div>
+            <h3>{data["title"]}</h3>
+            <p>{data["description"]}</p>
+            {pace_line}
+        </div>
+        """
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hybrid Sub-2:00 Dashboard</title>
+<style>
+  :root {{ --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; }}
+  .container {{ max-width: 820px; margin: 0 auto; }}
+  header {{ background: #111827; padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 16px; }}
+  header h1 {{ margin: 0 0 6px; font-size: 1.35rem; }}
+  header .sub {{ color: var(--muted); font-size: 0.85rem; }}
+  .kpis {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; }}
+  .kpi {{ background: var(--card); padding: 14px; border-radius: 10px; border: 1px solid #334155; }}
+  .kpi .lbl {{ font-size: 0.7rem; font-weight: 700; color: #60a5fa; letter-spacing: 0.05em; }}
+  .kpi .val {{ font-size: 1.25rem; font-weight: 700; margin: 4px 0; }}
+  .kpi .det {{ font-size: 0.78rem; color: var(--muted); }}
+  .card {{ background: var(--card); padding: 16px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #334155; }}
+  .card-top {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }}
+  .day {{ font-weight: 700; font-size: 0.95rem; margin-right: 8px; }}
+  .badge {{ font-size: 0.68rem; font-weight: 700; padding: 3px 7px; border-radius: 4px; color: #fff; }}
+  .dist {{ font-weight: 700; font-size: 0.85rem; }}
+  .card h3 {{ margin: 4px 0 6px; font-size: 1.05rem; }}
+  .card p {{ margin: 0 0 8px; color: #cbd5e1; font-size: 0.9rem; line-height: 1.4; }}
+  .pace {{ font-size: 0.85rem; font-weight: 600; color: #60a5fa; }}
+  .lift-note {{ color: #fbbf24; }}
+  footer {{ text-align: center; color: var(--muted); font-size: 0.78rem; margin-top: 20px; }}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Hybrid Performance & Sub-2:00 Dashboard</h1>
+    <div class="sub">Updated {datetime.now().strftime("%b %d, %Y at %I:%M %p")} • {meta.get("source", "Baseline")}</div>
+  </header>
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">PROJECTED HM</div><div class="val">{proj_hm}</div><div class="det">Target: &lt; 2:00:00</div></div>
+    <div class="kpi"><div class="lbl">7D LOGGED / PLAN</div><div class="val">{telemetry.get("weekly_miles", "0.0 mi")} / 21 mi</div><div class="det">{telemetry.get("weekly_runs", 0)} runs logged (7d)</div></div>
+    <div class="kpi"><div class="lbl">WATCH VO2 MAX</div><div class="val">{telemetry.get("vo2_max", "N/A")}</div><div class="det">Forerunner 165</div></div>
+    <div class="kpi"><div class="lbl">RESTING HR</div><div class="val">{telemetry.get("rhr", "N/A")}</div><div class="det">+{sync_stats.get("scheduled", 0)} new / {sync_stats.get("skipped", 0)} active</div></div>
+  </div>
+  {cards_html}
+  <footer>Auto-synced every Sunday 8:00 PM AST via GitHub Actions</footer>
+</div>
+</body>
+</html>"""
+    with open(HTML_FILE, "w", encoding="utf-8") as f:
+        f.write(html)
+    print("Web dashboard generated at docs/index.html")
+
 
 # Decode GitHub Actions Secrets into local temp files when running in the cloud
 if os.environ.get("GARMIN_STATE_B64"):
@@ -723,6 +809,7 @@ def run_pipeline():
             context.storage_state(path=STATE_FILE)
 
             generate_pdf(training_plan, sync_stats={"scheduled": scheduled_count, "skipped": skipped_count})
+            generate_web_dashboard(training_plan, sync_stats={"scheduled": scheduled_count, "skipped": skipped_count})
             generate_web_dashboard(training_plan, sync_stats={"scheduled": scheduled_count, "skipped": skipped_count})
             if creds:
                 service = build("drive", "v3", credentials=creds)
