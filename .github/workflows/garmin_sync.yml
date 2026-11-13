@@ -1,0 +1,30 @@
+name: Weekly Garmin & Drive Hybrid Sync
+
+on:
+  schedule:
+    # Runs every Sunday at 8:00 PM AST (Monday 00:00 UTC)
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # Allows manual 1-click trigger from GitHub mobile/web
+
+jobs:
+  sync-training-plan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies & Chromium
+        run: |
+          pip install fpdf google-api-python-client google-auth-httplib2 google-auth-oauthlib playwright
+          playwright install chromium --with-deps
+
+      - name: Run Adaptive Hybrid Pipeline
+        env:
+          GARMIN_STATE_B64: ${{ secrets.GARMIN_STATE_B64 }}
+          GOOGLE_TOKEN_B64: ${{ secrets.GOOGLE_TOKEN_B64 }}
+        run: python update_browser_pipeline.py

@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+garmin_state.json
+token.pickle
+credentials.json
+*.pdf
+*.log
