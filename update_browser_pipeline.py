@@ -74,7 +74,7 @@ def get_dynamic_plan(half_marathon_seconds=7070, source_label="Baseline (1:57:50
             "type": "run",
             "title": "Sub-2:00 Fartlek Intervals",
             "distance_label": "6.0 mi (9.7 km)",
-            "description": "10 min easy warmup | 6 miles Fartlek surge intervals | 5 min cooldown",
+            "description": "10 min warmup | 8x (3 min Fast Surge + 2 min Easy Jog) | 5 min cooldown",
             "target_pace": fmt_pace_both(fartlek_pace),
             "distance_m": 9656.0,
             "pace_ms_low": min_km_to_ms(fartlek_pace + 0.15),
@@ -146,6 +146,113 @@ def get_dynamic_plan(half_marathon_seconds=7070, source_label="Baseline (1:57:50
     }
 
 def build_garmin_workout_payload(run_data, workout_id=None):
+    if "Fartlek" in run_data["title"]:
+        work_high = run_data["pace_ms_high"]
+        work_low = run_data["pace_ms_low"]
+        rec_high = round(work_low * 0.88, 4)
+        rec_low = round(work_low * 0.72, 4)
+        steps = [
+            {
+                "type": "ExecutableStepDTO",
+                "stepId": None,
+                "stepOrder": 1,
+                "stepType": {"stepTypeId": 1, "stepTypeKey": "warmup", "displayOrder": 1},
+                "childStepId": None,
+                "description": "10 min Easy Warmup",
+                "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time", "displayOrder": 2, "displayable": True},
+                "endConditionValue": 600.0,
+                "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target", "displayOrder": 1}
+            },
+            {
+                "type": "RepeatGroupDTO",
+                "stepId": None,
+                "stepOrder": 2,
+                "stepType": {"stepTypeId": 6, "stepTypeKey": "repeat", "displayOrder": 6},
+                "childStepId": 1,
+                "numberOfIterations": 8,
+                "smartRepeat": False,
+                "endCondition": {"conditionTypeId": 7, "conditionTypeKey": "iterations", "displayOrder": 7, "displayable": False},
+                "endConditionValue": 8.0,
+                "workoutSteps": [
+                    {
+                        "type": "ExecutableStepDTO",
+                        "stepId": None,
+                        "stepOrder": 3,
+                        "stepType": {"stepTypeId": 3, "stepTypeKey": "interval", "displayOrder": 3},
+                        "childStepId": 1,
+                        "description": "3 min Fast Fartlek Surge",
+                        "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time", "displayOrder": 2, "displayable": True},
+                        "endConditionValue": 180.0,
+                        "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
+                        "targetValueOne": work_low,
+                        "targetValueTwo": work_high
+                    },
+                    {
+                        "type": "ExecutableStepDTO",
+                        "stepId": None,
+                        "stepOrder": 4,
+                        "stepType": {"stepTypeId": 4, "stepTypeKey": "recovery", "displayOrder": 4},
+                        "childStepId": 1,
+                        "description": "2 min Easy Recovery Jog",
+                        "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time", "displayOrder": 2, "displayable": True},
+                        "endConditionValue": 120.0,
+                        "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
+                        "targetValueOne": rec_low,
+                        "targetValueTwo": rec_high
+                    }
+                ]
+            },
+            {
+                "type": "ExecutableStepDTO",
+                "stepId": None,
+                "stepOrder": 5,
+                "stepType": {"stepTypeId": 2, "stepTypeKey": "cooldown", "displayOrder": 2},
+                "childStepId": None,
+                "description": "5 min Easy Cooldown",
+                "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time", "displayOrder": 2, "displayable": True},
+                "endConditionValue": 300.0,
+                "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target", "displayOrder": 1}
+            }
+        ]
+    else:
+        steps = [
+            {
+                "type": "ExecutableStepDTO",
+                "stepId": None,
+                "stepOrder": 1,
+                "stepType": {"stepTypeId": 1, "stepTypeKey": "warmup", "displayOrder": 1},
+                "childStepId": None,
+                "description": "10 min Easy Warmup",
+                "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time", "displayOrder": 2, "displayable": True},
+                "endConditionValue": 600.0,
+                "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target", "displayOrder": 1}
+            },
+            {
+                "type": "ExecutableStepDTO",
+                "stepId": None,
+                "stepOrder": 2,
+                "stepType": {"stepTypeId": 3, "stepTypeKey": "interval", "displayOrder": 3},
+                "childStepId": None,
+                "description": run_data["description"],
+                "endCondition": {"conditionTypeId": 3, "conditionTypeKey": "distance", "displayOrder": 3, "displayable": True},
+                "endConditionValue": run_data["distance_m"],
+                "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
+                "targetValueOne": run_data["pace_ms_low"],
+                "targetValueTwo": run_data["pace_ms_high"]
+            },
+            {
+                "type": "ExecutableStepDTO",
+                "stepId": None,
+                "stepOrder": 3,
+                "stepType": {"stepTypeId": 2, "stepTypeKey": "cooldown", "displayOrder": 2},
+                "childStepId": None,
+                "description": "5 min Easy Cooldown",
+                "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time", "displayOrder": 2, "displayable": True},
+                "endConditionValue": 300.0,
+                "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target", "displayOrder": 1}
+            }
+        ]
+
     payload = {
         "sportType": {"sportTypeId": 1, "sportTypeKey": "running", "displayOrder": 1},
         "subSportType": None,
@@ -155,43 +262,7 @@ def build_garmin_workout_payload(run_data, workout_id=None):
             {
                 "segmentOrder": 1,
                 "sportType": {"sportTypeId": 1, "sportTypeKey": "running", "displayOrder": 1},
-                "workoutSteps": [
-                    {
-                        "type": "ExecutableStepDTO",
-                        "stepId": None,
-                        "stepOrder": 1,
-                        "stepType": {"stepTypeId": 1, "stepTypeKey": "warmup", "displayOrder": 1},
-                        "childStepId": None,
-                        "description": "10 min Easy Warmup",
-                        "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time", "displayOrder": 2, "displayable": True},
-                        "endConditionValue": 600.0,
-                        "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target", "displayOrder": 1}
-                    },
-                    {
-                        "type": "ExecutableStepDTO",
-                        "stepId": None,
-                        "stepOrder": 2,
-                        "stepType": {"stepTypeId": 3, "stepTypeKey": "interval", "displayOrder": 3},
-                        "childStepId": None,
-                        "description": run_data["description"],
-                        "endCondition": {"conditionTypeId": 3, "conditionTypeKey": "distance", "displayOrder": 3, "displayable": True},
-                        "endConditionValue": run_data["distance_m"],
-                        "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
-                        "targetValueOne": run_data["pace_ms_low"],
-                        "targetValueTwo": run_data["pace_ms_high"]
-                    },
-                    {
-                        "type": "ExecutableStepDTO",
-                        "stepId": None,
-                        "stepOrder": 3,
-                        "stepType": {"stepTypeId": 2, "stepTypeKey": "cooldown", "displayOrder": 2},
-                        "childStepId": None,
-                        "description": "5 min Easy Cooldown",
-                        "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time", "displayOrder": 2, "displayable": True},
-                        "endConditionValue": 300.0,
-                        "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target", "displayOrder": 1}
-                    }
-                ]
+                "workoutSteps": steps
             }
         ]
     }
@@ -619,10 +690,28 @@ def run_pipeline():
                 {"prefix": captured["prefix"], "headers": captured["headers"]}
             )
 
-            existing_map = {}
+            plan_titles = {
+                data["title"]
+                for day_name, data in training_plan.items()
+                if not day_name.startswith("_") and data["type"] == "run"
+            }
+
             if existing_res["status"] == 200:
                 for w in json.loads(existing_res["body"]):
-                    existing_map[w.get("workoutName")] = w.get("workoutId")
+                    w_name = w.get("workoutName", "")
+                    w_id = w.get("workoutId")
+                    if w_name in plan_titles or w_name.startswith("Sub-2:00 "):
+                        del_res = page.evaluate(
+                            """async ({prefix, headers, workoutId}) => {
+                                const reqHeaders = Object.assign({'Accept': 'application/json'}, headers);
+                                const r = await fetch(`${prefix}/workout-service/workout/${workoutId}`, {
+                                    method: 'DELETE', headers: reqHeaders, credentials: 'include'
+                                });
+                                return {status: r.status};
+                            }""",
+                            {"prefix": captured["prefix"], "headers": captured["headers"], "workoutId": w_id}
+                        )
+                        print(f"  [CLEANUP] Deleted old/duplicate workout '{w_name}' (ID: {w_id}) -> Status {del_res['status']}")
             else:
                 print(f"Workouts list check returned status {existing_res['status']}")
                 return
@@ -632,37 +721,21 @@ def run_pipeline():
                 if day_name.startswith("_") or data["type"] != "run":
                     continue
                 title = data["title"]
-                if title in existing_map:
-                    w_id = existing_map[title]
-                    payload = build_garmin_workout_payload(data, workout_id=w_id)
-                    upd_res = page.evaluate(
-                        """async ({prefix, headers, workoutId, payload}) => {
-                            const reqHeaders = Object.assign({'Accept': 'application/json', 'Content-Type': 'application/json'}, headers);
-                            const r = await fetch(`${prefix}/workout-service/workout/${workoutId}`, {
-                                method: 'PUT', headers: reqHeaders, credentials: 'include', body: JSON.stringify(payload)
-                            });
-                            return {status: r.status, body: await r.text()};
-                        }""",
-                        {"prefix": captured["prefix"], "headers": captured["headers"], "workoutId": w_id, "payload": payload}
-                    )
+                payload = build_garmin_workout_payload(data)
+                create_res = page.evaluate(
+                    """async ({prefix, headers, payload}) => {
+                        const reqHeaders = Object.assign({'Accept': 'application/json', 'Content-Type': 'application/json'}, headers);
+                        const r = await fetch(`${prefix}/workout-service/workout`, {
+                            method: 'POST', headers: reqHeaders, credentials: 'include', body: JSON.stringify(payload)
+                        });
+                        return {status: r.status, body: await r.text()};
+                    }""",
+                    {"prefix": captured["prefix"], "headers": captured["headers"], "payload": payload}
+                )
+                if create_res["status"] in (200, 201):
+                    w_id = json.loads(create_res["body"]).get("workoutId")
                     workout_ids[data["weekday"]] = w_id
-                    print(f"  [TEMPLATE] Updated '{title}' (ID: {w_id}) -> {data['target_pace']} (Status {upd_res['status']})")
-                else:
-                    payload = build_garmin_workout_payload(data)
-                    create_res = page.evaluate(
-                        """async ({prefix, headers, payload}) => {
-                            const reqHeaders = Object.assign({'Accept': 'application/json', 'Content-Type': 'application/json'}, headers);
-                            const r = await fetch(`${prefix}/workout-service/workout`, {
-                                method: 'POST', headers: reqHeaders, credentials: 'include', body: JSON.stringify(payload)
-                            });
-                            return {status: r.status, body: await r.text()};
-                        }""",
-                        {"prefix": captured["prefix"], "headers": captured["headers"], "payload": payload}
-                    )
-                    if create_res["status"] in (200, 201):
-                        w_id = json.loads(create_res["body"]).get("workoutId")
-                        workout_ids[data["weekday"]] = w_id
-                        print(f"  [TEMPLATE] Created '{title}' (ID: {w_id}) -> {data['target_pace']}")
+                    print(f"  [TEMPLATE] Created clean '{title}' (ID: {w_id}) -> {data['target_pace']}")
 
             today = datetime.now().date()
             end_date = today + timedelta(days=21)
