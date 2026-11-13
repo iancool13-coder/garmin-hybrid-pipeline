@@ -214,6 +214,83 @@ def build_garmin_workout_payload(run_data, workout_id=None):
                 "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target", "displayOrder": 1}
             }
         ]
+    elif "Strides" in run_data["title"]:
+        stride_high = round(run_data["pace_ms_high"] * 1.28, 4)
+        stride_low = round(run_data["pace_ms_high"] * 1.12, 4)
+        steps = [
+            {
+                "type": "ExecutableStepDTO",
+                "stepId": None,
+                "stepOrder": 1,
+                "stepType": {"stepTypeId": 1, "stepTypeKey": "warmup", "displayOrder": 1},
+                "childStepId": None,
+                "description": "10 min Easy Warmup",
+                "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time", "displayOrder": 2, "displayable": True},
+                "endConditionValue": 600.0,
+                "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target", "displayOrder": 1}
+            },
+            {
+                "type": "ExecutableStepDTO",
+                "stepId": None,
+                "stepOrder": 2,
+                "stepType": {"stepTypeId": 3, "stepTypeKey": "interval", "displayOrder": 3},
+                "childStepId": None,
+                "description": "4.0 mi Steady Aerobic Zone 2 Base",
+                "endCondition": {"conditionTypeId": 3, "conditionTypeKey": "distance", "displayOrder": 3, "displayable": True},
+                "endConditionValue": run_data["distance_m"],
+                "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
+                "targetValueOne": run_data["pace_ms_low"],
+                "targetValueTwo": run_data["pace_ms_high"]
+            },
+            {
+                "type": "RepeatGroupDTO",
+                "stepId": None,
+                "stepOrder": 3,
+                "stepType": {"stepTypeId": 6, "stepTypeKey": "repeat", "displayOrder": 6},
+                "childStepId": 1,
+                "numberOfIterations": 4,
+                "smartRepeat": False,
+                "endCondition": {"conditionTypeId": 7, "conditionTypeKey": "iterations", "displayOrder": 7, "displayable": False},
+                "endConditionValue": 4.0,
+                "workoutSteps": [
+                    {
+                        "type": "ExecutableStepDTO",
+                        "stepId": None,
+                        "stepOrder": 4,
+                        "stepType": {"stepTypeId": 3, "stepTypeKey": "interval", "displayOrder": 3},
+                        "childStepId": 1,
+                        "description": "100m Fast Neuromuscular Stride",
+                        "endCondition": {"conditionTypeId": 3, "conditionTypeKey": "distance", "displayOrder": 3, "displayable": True},
+                        "endConditionValue": 100.0,
+                        "targetType": {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6},
+                        "targetValueOne": stride_low,
+                        "targetValueTwo": stride_high
+                    },
+                    {
+                        "type": "ExecutableStepDTO",
+                        "stepId": None,
+                        "stepOrder": 5,
+                        "stepType": {"stepTypeId": 4, "stepTypeKey": "recovery", "displayOrder": 4},
+                        "childStepId": 1,
+                        "description": "100m Easy Walk/Jog Recovery",
+                        "endCondition": {"conditionTypeId": 3, "conditionTypeKey": "distance", "displayOrder": 3, "displayable": True},
+                        "endConditionValue": 100.0,
+                        "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target", "displayOrder": 1}
+                    }
+                ]
+            },
+            {
+                "type": "ExecutableStepDTO",
+                "stepId": None,
+                "stepOrder": 6,
+                "stepType": {"stepTypeId": 2, "stepTypeKey": "cooldown", "displayOrder": 2},
+                "childStepId": None,
+                "description": "5 min Easy Cooldown",
+                "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time", "displayOrder": 2, "displayable": True},
+                "endConditionValue": 300.0,
+                "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target", "displayOrder": 1}
+            }
+        ]
     else:
         steps = [
             {
