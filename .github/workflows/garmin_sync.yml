@@ -7,6 +7,12 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+environment:
+  name: github-pages
+  url: ${{ steps.deployment.outputs.page_url }}
 
 jobs:
   sync-training-plan:
@@ -31,9 +37,18 @@ jobs:
           GOOGLE_TOKEN_B64: ${{ secrets.GOOGLE_TOKEN_B64 }}
         run: python update_browser_pipeline.py
 
-      - name: Publish Updated Web Dashboard
+      - name: Commit Updated Dashboard HTML
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/index.html
           git diff --staged --quiet || (git commit -m "Auto-update live training dashboard" && git push)
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
