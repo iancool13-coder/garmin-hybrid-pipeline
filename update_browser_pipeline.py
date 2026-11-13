@@ -15,89 +15,44 @@ TOKEN_FILE = os.path.join(BASE_DIR, "token.json")
 PDF_FILE = os.path.join(BASE_DIR, "Training_Plan_Week1.pdf")
 HTML_FILE = os.path.join(BASE_DIR, "docs", "index.html")
 
-def generate_web_dashboard(training_plan, sync_stats=None):
-    os.makedirs(os.path.dirname(HTML_FILE), exist_ok=True)
-    meta = training_plan.get("_meta", {})
-    telemetry = meta.get("telemetry", {})
-    sync_stats = sync_stats or {}
-    hm_sec = meta.get("hm_seconds", 7070)
-    hrs, rem = divmod(hm_sec, 3600)
-    mins, secs = divmod(rem, 60)
-    proj_hm = f"{hrs}:{mins:02d}:{secs:02d}"
+if os.environ.get("GARMIN_STATE_B64"):
+    with open(STATE_FILE, "wb") as f:
+        f.write(base64.b64decode(os.environ["GARMIN_STATE_B64"]))
 
-    cards_html = ""
-    for day, data in training_plan.items():
-        if day.startswith("_"):
-            continue
-        is_run = data["type"] == "run"
-        badge = "GARMIN RUN" if is_run else "HOME LIFT"
-        accent = "#3b82f6" if is_run else "#f59e0b"
-        pace_line = f"<div class=\"pace\">Target Pace: {data['target_pace']}</div>" if is_run else "<div class=\"pace lift-note\">Power Rack • 225 lb Barbell • Landmine</div>"
-        cards_html += f"""
-        <div class="card" style="border-left: 4px solid {accent};">
-            <div class="card-top">
-                <div>
-                    <span class="day">{day}</span>
-                    <span class="badge" style="background:{accent};">{badge}</span>
-                </div>
-                <span class="dist" style="color:{accent};">{data.get("distance_label", "")}</span>
-            </div>
-            <h3>{data["title"]}</h3>
-            <p>{data["description"]}</p>
-            {pace_line}
-        </div>
-        """
+if os.environ.get("GOOGLE_TOKEN_B64"):
+    with open(TOKEN_FILE, "wb") as f:
+        f.write(base64.b64decode(os.environ["GOOGLE_TOKEN_B64"]))
 
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hybrid Sub-2:00 Dashboard</title>
-<style>
-  :root {{ --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; }}
-  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; }}
-  .container {{ max-width: 820px; margin: 0 auto; }}
-  header {{ background: #111827; padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 16px; }}
-  header h1 {{ margin: 0 0 6px; font-size: 1.35rem; }}
-  header .sub {{ color: var(--muted); font-size: 0.85rem; }}
-  .kpis {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; }}
-  .kpi {{ background: var(--card); padding: 14px; border-radius: 10px; border: 1px solid #334155; }}
-  .kpi .lbl {{ font-size: 0.7rem; font-weight: 700; color: #60a5fa; letter-spacing: 0.05em; }}
-  .kpi .val {{ font-size: 1.25rem; font-weight: 700; margin: 4px 0; }}
-  .kpi .det {{ font-size: 0.78rem; color: var(--muted); }}
-  .card {{ background: var(--card); padding: 16px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #334155; }}
-  .card-top {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }}
-  .day {{ font-weight: 700; font-size: 0.95rem; margin-right: 8px; }}
-  .badge {{ font-size: 0.68rem; font-weight: 700; padding: 3px 7px; border-radius: 4px; color: #fff; }}
-  .dist {{ font-weight: 700; font-size: 0.85rem; }}
-  .card h3 {{ margin: 4px 0 6px; font-size: 1.05rem; }}
-  .card p {{ margin: 0 0 8px; color: #cbd5e1; font-size: 0.9rem; line-height: 1.4; }}
-  .pace {{ font-size: 0.85rem; font-weight: 600; color: #60a5fa; }}
-  .lift-note {{ color: #fbbf24; }}
-  footer {{ text-align: center; color: var(--muted); font-size: 0.78rem; margin-top: 20px; }}
-</style>
-</head>
-<body>
-<div class="container">
-  <header>
-    <h1>Hybrid Performance & Sub-2:00 Dashboard</h1>
-    <div class="sub">Updated {datetime.now().strftime("%b %d, %Y at %I:%M %p")} • {meta.get("source", "Baseline")}</div>
-  </header>
-  <div class="kpis">
-    <div class="kpi"><div class="lbl">PROJECTED HM</div><div class="val">{proj_hm}</div><div class="det">Target: &lt; 2:00:00</div></div>
-    <div class="kpi"><div class="lbl">7D LOGGED / PLAN</div><div class="val">{telemetry.get("weekly_miles", "0.0 mi")} / 21 mi</div><div class="det">{telemetry.get("weekly_runs", 0)} runs logged (7d)</div></div>
-    <div class="kpi"><div class="lbl">WATCH VO2 MAX</div><div class="val">{telemetry.get("vo2_max", "N/A")}</div><div class="det">Forerunner 165</div></div>
-    <div class="kpi"><div class="lbl">RESTING HR</div><div class="val">{telemetry.get("rhr", "N/A")}</div><div class="det">+{sync_stats.get("scheduled", 0)} new / {sync_stats.get("skipped", 0)} active</div></div>
-  </div>
-  {cards_html}
-  <footer>Auto-synced every Sunday 8:00 PM AST via GitHub Actions</footer>
-</div>
-</body>
-</html>"""
-    with open(HTML_FILE, "w", encoding="utf-8") as f:
-        f.write(html)
-    print("Web dashboard generated at docs/index.html")
+print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] >>> STARTING ADAPTIVE HYBRID PIPELINE <<<")
+
+creds = None
+if os.path.exists(TOKEN_FILE):
+    creds = Credentials.from_authorized_user_file(TOKEN_FILE)
+    if creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        with open(TOKEN_FILE, "w") as f:
+            f.write(creds.to_json())
+
+def min_km_to_ms(min_per_km):
+    return round(1000.0 / (min_per_km * 60.0), 4)
+
+def fmt_pace_both(min_per_km):
+    km_m = int(min_per_km)
+    km_s = int(round((min_per_km - km_m) * 60))
+    if km_s == 60:
+        km_m += 1
+        km_s = 0
+    min_per_mi = min_per_km * 1.60934
+    mi_m = int(min_per_mi)
+    mi_s = int(round((min_per_mi - mi_m) * 60))
+    if mi_s == 60:
+        mi_m += 1
+        mi_s = 0
+    return f"{km_m}:{km_s:02d}/km ({mi_m}:{mi_s:02d}/mi)"
+
+def vo2max_to_hm_seconds(vo2):
+    estimated_sec = 7080 - ((vo2 - 46.0) * 172.0)
+    return max(4200, min(9000, int(estimated_sec)))
 
 def get_dynamic_plan(half_marathon_seconds=7070, source_label="Baseline (1:57:50 HM)", telemetry=None):
     base_min_per_km = (half_marathon_seconds / 21.0975) / 60.0
@@ -384,7 +339,6 @@ def generate_pdf(training_plan, sync_stats=None):
     pdf.set_auto_page_break(auto=False)
     pdf.add_page()
 
-    # --- Top Executive Header Banner ---
     pdf.set_fill_color(17, 24, 39)
     pdf.rect(10, 10, 195.9, 24, "F")
 
@@ -403,7 +357,6 @@ def generate_pdf(training_plan, sync_stats=None):
     cal_text = sanitize_pdf_text(f"Calibration: {meta.get('source', 'Baseline')}  |  4-Day Run + 3-Day Home Strength Split")
     pdf.cell(187.9, 6, cal_text, ln=True)
 
-    # --- 4-Column Live Telemetry & KPI Strip ---
     kpis = [
         ("PROJECTED HM", proj_hm_str, "Goal: < 2:00:00", (22, 101, 52), (240, 253, 244)),
         ("PLANNED / 7D ACTUAL", f"21.0 mi / {telemetry.get('weekly_miles', '0.0 mi')}", f"{telemetry.get('weekly_runs', 0)} runs logged (7d)", (30, 64, 175), (239, 246, 255)),
@@ -436,7 +389,6 @@ def generate_pdf(training_plan, sync_stats=None):
         pdf.set_text_color(75, 85, 99)
         pdf.cell(card_w - 5, 4, sanitize_pdf_text(sub), ln=True)
 
-    # --- Section Header ---
     y_curr = 60
     pdf.set_xy(10, y_curr)
     pdf.set_font("Helvetica", "B", 10)
@@ -470,11 +422,9 @@ def generate_pdf(training_plan, sync_stats=None):
         pdf.set_line_width(0.25)
         pdf.rect(10, y_curr, 195.9, row_h, "DF")
 
-        # Left accent stripe
         pdf.set_fill_color(*border)
         pdf.rect(10, y_curr, 2.5, row_h, "F")
 
-        # Day + Badge
         pdf.set_xy(15, y_curr + 2.5)
         pdf.set_font("Helvetica", "B", 10)
         pdf.set_text_color(17, 24, 39)
@@ -485,24 +435,20 @@ def generate_pdf(training_plan, sync_stats=None):
         pdf.set_font("Helvetica", "B", 7)
         pdf.cell(23, 5, badge_txt, align="C", fill=True, ln=False)
 
-        # Workout Title
         pdf.set_xy(67, y_curr + 2.5)
         pdf.set_font("Helvetica", "B", 10)
         pdf.set_text_color(17, 24, 39)
         pdf.cell(92, 5.5, sanitize_pdf_text(data["title"]), ln=False)
 
-        # Right-side Distance / Duration Pill
         pdf.set_font("Helvetica", "B", 8.5)
         pdf.set_text_color(*badge_bg)
         pdf.cell(43.9, 5.5, sanitize_pdf_text(data.get("distance_label", "")), align="R", ln=True)
 
-        # Description line
         pdf.set_xy(15, y_curr + 9.5)
         pdf.set_font("Helvetica", "", 8.8)
         pdf.set_text_color(55, 65, 81)
         pdf.cell(187, 5, sanitize_pdf_text(data["description"]), ln=True)
 
-        # Target Pace / Status line
         pdf.set_xy(15, y_curr + 16.5)
         if is_run:
             pdf.set_font("Helvetica", "B", 8.5)
@@ -518,7 +464,6 @@ def generate_pdf(training_plan, sync_stats=None):
 
         y_curr += row_h + 2.2
 
-    # --- Footer ---
     pdf.set_xy(10, 268)
     pdf.set_font("Helvetica", "I", 7.5)
     pdf.set_text_color(107, 114, 128)
@@ -526,6 +471,94 @@ def generate_pdf(training_plan, sync_stats=None):
 
     pdf.output(PDF_FILE)
     print(f"Upgraded Dashboard PDF generated successfully (Calibration: {meta.get('source')}).")
+
+def generate_web_dashboard(training_plan, sync_stats=None):
+    os.makedirs(os.path.dirname(HTML_FILE), exist_ok=True)
+    meta = training_plan.get("_meta", {})
+    telemetry = meta.get("telemetry", {})
+    sync_stats = sync_stats or {}
+    hm_sec = meta.get("hm_seconds", 7070)
+    hrs, rem = divmod(hm_sec, 3600)
+    mins, secs = divmod(rem, 60)
+    proj_hm = f"{hrs}:{mins:02d}:{secs:02d}"
+
+    cards_html = ""
+    for day, data in training_plan.items():
+        if day.startswith("_"):
+            continue
+        is_run = data["type"] == "run"
+        badge = "GARMIN RUN" if is_run else "HOME LIFT"
+        accent = "#3b82f6" if is_run else "#f59e0b"
+        pace_line = (
+            f'<div class="pace">Target Pace: {data["target_pace"]}</div>'
+            if is_run
+            else '<div class="pace lift-note">Power Rack &bull; 225 lb Barbell &bull; Landmine</div>'
+        )
+        cards_html += f"""
+        <div class="card" style="border-left: 4px solid {accent};">
+            <div class="card-top">
+                <div>
+                    <span class="day">{day}</span>
+                    <span class="badge" style="background:{accent};">{badge}</span>
+                </div>
+                <span class="dist" style="color:{accent};">{data.get("distance_label", "")}</span>
+            </div>
+            <h3>{data["title"]}</h3>
+            <p>{data["description"]}</p>
+            {pace_line}
+        </div>
+        """
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hybrid Sub-2:00 Dashboard</title>
+<style>
+  :root {{ --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; }}
+  .container {{ max-width: 820px; margin: 0 auto; }}
+  header {{ background: #111827; padding: 20px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 16px; }}
+  header h1 {{ margin: 0 0 6px; font-size: 1.35rem; }}
+  header .sub {{ color: var(--muted); font-size: 0.85rem; }}
+  .kpis {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; }}
+  .kpi {{ background: var(--card); padding: 14px; border-radius: 10px; border: 1px solid #334155; }}
+  .kpi .lbl {{ font-size: 0.7rem; font-weight: 700; color: #60a5fa; letter-spacing: 0.05em; }}
+  .kpi .val {{ font-size: 1.25rem; font-weight: 700; margin: 4px 0; }}
+  .kpi .det {{ font-size: 0.78rem; color: var(--muted); }}
+  .card {{ background: var(--card); padding: 16px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #334155; }}
+  .card-top {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }}
+  .day {{ font-weight: 700; font-size: 0.95rem; margin-right: 8px; }}
+  .badge {{ font-size: 0.68rem; font-weight: 700; padding: 3px 7px; border-radius: 4px; color: #fff; }}
+  .dist {{ font-weight: 700; font-size: 0.85rem; }}
+  .card h3 {{ margin: 4px 0 6px; font-size: 1.05rem; }}
+  .card p {{ margin: 0 0 8px; color: #cbd5e1; font-size: 0.9rem; line-height: 1.4; }}
+  .pace {{ font-size: 0.85rem; font-weight: 600; color: #60a5fa; }}
+  .lift-note {{ color: #fbbf24; }}
+  footer {{ text-align: center; color: var(--muted); font-size: 0.78rem; margin-top: 20px; }}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Hybrid Performance &amp; Sub-2:00 Dashboard</h1>
+    <div class="sub">Updated {datetime.now().strftime("%b %d, %Y at %I:%M %p")} &bull; {meta.get("source", "Baseline")}</div>
+  </header>
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">PROJECTED HM</div><div class="val">{proj_hm}</div><div class="det">Target: &lt; 2:00:00</div></div>
+    <div class="kpi"><div class="lbl">7D LOGGED / PLAN</div><div class="val">{telemetry.get("weekly_miles", "0.0 mi")} / 21 mi</div><div class="det">{telemetry.get("weekly_runs", 0)} runs logged (7d)</div></div>
+    <div class="kpi"><div class="lbl">WATCH VO2 MAX</div><div class="val">{telemetry.get("vo2_max", "N/A")}</div><div class="det">Forerunner 165</div></div>
+    <div class="kpi"><div class="lbl">RESTING HR</div><div class="val">{telemetry.get("rhr", "N/A")}</div><div class="det">+{sync_stats.get("scheduled", 0)} new / {sync_stats.get("skipped", 0)} active</div></div>
+  </div>
+  {cards_html}
+  <footer>Auto-synced every Sunday 8:00 PM AST via GitHub Actions</footer>
+</div>
+</body>
+</html>"""
+    with open(HTML_FILE, "w", encoding="utf-8") as f:
+        f.write(html)
+    print("Web dashboard generated at docs/index.html")
 
 def run_pipeline():
     if not os.path.exists(STATE_FILE):
@@ -683,6 +716,7 @@ def run_pipeline():
 
             generate_pdf(training_plan, sync_stats={"scheduled": scheduled_count, "skipped": skipped_count})
             generate_web_dashboard(training_plan, sync_stats={"scheduled": scheduled_count, "skipped": skipped_count})
+
             if creds:
                 service = build("drive", "v3", credentials=creds)
                 folder_name = "training plans"
