@@ -36,11 +36,25 @@ if os.path.exists(TOKEN_FILE):
 def min_km_to_ms(min_per_km):
     return round(1000.0 / (min_per_km * 60.0), 4)
 
+def fmt_pace_both(min_per_km):
+    km_m = int(min_per_km)
+    km_s = int(round((min_per_km - km_m) * 60))
+    if km_s == 60:
+        km_m += 1
+        km_s = 0
+    min_per_mi = min_per_km * 1.60934
+    mi_m = int(min_per_mi)
+    mi_s = int(round((min_per_mi - mi_m) * 60))
+    if mi_s == 60:
+        mi_m += 1
+        mi_s = 0
+    return f"{km_m}:{km_s:02d}/km ({mi_m}:{mi_s:02d}/mi)"
+
 def vo2max_to_hm_seconds(vo2):
     estimated_sec = 7080 - ((vo2 - 46.0) * 172.0)
     return max(4200, min(9000, int(estimated_sec)))
 
-def get_dynamic_plan(half_marathon_seconds=7070, source_label="Baseline (1:57:50 HM)"):
+def get_dynamic_plan(half_marathon_seconds=7070, source_label="Baseline (1:57:50 HM)", telemetry=None):
     base_min_per_km = (half_marathon_seconds / 21.0975) / 60.0
 
     fartlek_pace = round(base_min_per_km * 0.95, 2)
@@ -52,14 +66,16 @@ def get_dynamic_plan(half_marathon_seconds=7070, source_label="Baseline (1:57:50
         "_meta": {
             "hm_seconds": half_marathon_seconds,
             "source": source_label,
-            "base_min_km": round(base_min_per_km, 2)
+            "base_min_km": round(base_min_per_km, 2),
+            "telemetry": telemetry or {}
         },
         "Monday": {
             "weekday": 0,
             "type": "run",
             "title": "Sub-2:00 Fartlek Intervals",
-            "description": "10 min warmup, 6 miles Fartlek intervals, 5 min cooldown",
-            "target_pace": f"approx {fartlek_pace} min/km",
+            "distance_label": "6.0 mi (9.7 km)",
+            "description": "10 min easy warmup | 6 miles Fartlek surge intervals | 5 min cooldown",
+            "target_pace": fmt_pace_both(fartlek_pace),
             "distance_m": 9656.0,
             "pace_ms_low": min_km_to_ms(fartlek_pace + 0.15),
             "pace_ms_high": min_km_to_ms(fartlek_pace - 0.15)
@@ -67,19 +83,20 @@ def get_dynamic_plan(half_marathon_seconds=7070, source_label="Baseline (1:57:50
         "Tuesday": {
             "weekday": 1,
             "type": "lift",
-            "title": "Lower Body Power",
+            "title": "Lower Body Power (Rack & Landmine)",
+            "distance_label": "45 min Strength",
             "description": (
-                "- Barbell Back Squats: Warmup sets, then 3 working sets x 5 reps (RPE 8)\n"
-                "- Landmine RDLs: 3 sets x 8-10 reps per leg\n"
-                "- Core Stabilization (Plank / Pallof Press): 3 sets x 45 sec hold"
+                "Barbell Back Squats: Warmup + 3x5 @ RPE 8 (225 lb rack)  |  "
+                "Landmine RDLs: 3x8-10/leg  |  Plank / Pallof Press: 3x45s"
             )
         },
         "Wednesday": {
             "weekday": 2,
             "type": "run",
-            "title": "Sub-2:00 Base + Strides",
-            "description": "4 miles easy aerobic base + 4 strides",
-            "target_pace": f"approx {base_pace} min/km",
+            "title": "Sub-2:00 Aerobic Base + Strides",
+            "distance_label": "4.0 mi (6.4 km)",
+            "description": "4 miles steady aerobic Zone 2 base + 4x100m neuromuscular strides",
+            "target_pace": fmt_pace_both(base_pace),
             "distance_m": 6437.0,
             "pace_ms_low": min_km_to_ms(base_pace + 0.15),
             "pace_ms_high": min_km_to_ms(base_pace - 0.15)
@@ -87,19 +104,20 @@ def get_dynamic_plan(half_marathon_seconds=7070, source_label="Baseline (1:57:50
         "Thursday": {
             "weekday": 3,
             "type": "lift",
-            "title": "Upper Body & Back",
+            "title": "Upper Body & Back (Pull-Up Bar & Landmine)",
+            "distance_label": "45 min Strength",
             "description": (
-                "- Pull-ups (Weighted or Bodyweight): 3 sets x max reps (leave 2 in tank)\n"
-                "- Landmine Single-Arm Presses: 3 sets x 8 reps per arm\n"
-                "- Barbell Bent-Over Rows: 4 sets x 6-8 reps (heavy)"
+                "Pull-Ups (Power Rack): 3xMax (2 RIR)  |  "
+                "Landmine Single-Arm Press: 3x8/arm  |  Barbell Bent-Over Rows: 4x6-8"
             )
         },
         "Friday": {
             "weekday": 4,
             "type": "run",
-            "title": "Sub-2:00 Recovery",
-            "description": "3 miles easy recovery jog",
-            "target_pace": f"approx {recovery_pace} min/km",
+            "title": "Sub-2:00 Active Recovery Jog",
+            "distance_label": "3.0 mi (4.8 km)",
+            "description": "3 miles conversational recovery flush (strictly easy effort)",
+            "target_pace": fmt_pace_both(recovery_pace),
             "distance_m": 4828.0,
             "pace_ms_low": min_km_to_ms(recovery_pace + 0.20),
             "pace_ms_high": min_km_to_ms(recovery_pace - 0.15)
@@ -107,18 +125,20 @@ def get_dynamic_plan(half_marathon_seconds=7070, source_label="Baseline (1:57:50
         "Saturday": {
             "weekday": 5,
             "type": "lift",
-            "title": "Mobility & Core",
+            "title": "Core Rotational Power & Mobility",
+            "distance_label": "30 min Recovery",
             "description": (
-                "- Landmine Russian Twists: 3 sets x 15 reps/side\n"
-                "- Hip Flexor Release & Dynamic Flow Stretching: 15 mins"
+                "Landmine Russian Twists: 3x15/side  |  "
+                "Hip Flexor Release, Thoracic Opener & Dynamic Flow (15 min)"
             )
         },
         "Sunday": {
             "weekday": 6,
             "type": "run",
-            "title": "Sub-2:00 Long Run",
-            "description": "8 miles steady state baseline",
-            "target_pace": f"approx {long_pace} min/km",
+            "title": "Sub-2:00 Endurance Long Run",
+            "distance_label": "8.0 mi (12.9 km)",
+            "description": "8 miles steady-state aerobic endurance builder",
+            "target_pace": fmt_pace_both(long_pace),
             "distance_m": 12875.0,
             "pace_ms_low": min_km_to_ms(long_pace + 0.15),
             "pace_ms_high": min_km_to_ms(long_pace - 0.15)
@@ -179,7 +199,17 @@ def build_garmin_workout_payload(run_data, workout_id=None):
         payload["workoutId"] = workout_id
     return payload
 
-def fetch_live_fitness_baseline(page, prefix, headers):
+def fetch_live_fitness_and_telemetry(page, prefix, headers):
+    telemetry = {
+        "vo2_max": "N/A",
+        "rhr": "N/A",
+        "weekly_miles": "0.0 mi",
+        "weekly_runs": 0
+    }
+    hm_seconds = 7070
+    source_label = "Default Baseline (1:57:50 HM)"
+    found_race = False
+
     act_res = page.evaluate(
         """async ({prefix, headers}) => {
             const reqHeaders = Object.assign({'Accept': 'application/json'}, headers);
@@ -191,25 +221,46 @@ def fetch_live_fitness_baseline(page, prefix, headers):
         {"prefix": prefix, "headers": headers}
     )
 
+    seven_days_ago = datetime.now() - timedelta(days=7)
+    weekly_meters = 0.0
+    weekly_run_count = 0
+
     if act_res["status"] == 200:
         activities = json.loads(act_res["body"])
         for act in activities:
             dist_m = act.get("distance") or 0
             dur_s = act.get("duration") or 0
-            name = (act.get("activityName") or "").lower()
-            event_type = (act.get("eventType", {}) or {}).get("typeKey", "")
-            is_race = (event_type == "race") or any(k in name for k in ["21k", "half", "10k", "5k", "race", "marathon"])
+            start_local = act.get("startTimeLocal") or ""
+            if start_local:
+                try:
+                    act_dt = datetime.strptime(start_local[:19], "%Y-%m-%d %H:%M:%S")
+                    if act_dt >= seven_days_ago:
+                        weekly_meters += dist_m
+                        weekly_run_count += 1
+                except Exception:
+                    pass
 
-            if 20800 <= dist_m <= 21500 and dur_s > 3600:
-                mins, secs = divmod(int(dur_s), 60)
-                hrs, mins = divmod(mins, 60)
-                return int(dur_s), f"Live Race ({act.get('activityName')}: {hrs}:{mins:02d}:{secs:02d})"
+            if not found_race:
+                name = (act.get("activityName") or "").lower()
+                event_type = (act.get("eventType", {}) or {}).get("typeKey", "")
+                is_race = (event_type == "race") or any(k in name for k in ["21k", "half", "10k", "5k", "race", "marathon", "lola"])
 
-            if is_race and 4800 <= dist_m <= 10500 and dur_s > 900:
-                equiv_hm = int(dur_s * ((21097.5 / dist_m) ** 1.06))
-                mins, secs = divmod(equiv_hm, 60)
-                hrs, mins = divmod(mins, 60)
-                return equiv_hm, f"Scaled from {act.get('activityName')} (Equiv HM {hrs}:{mins:02d}:{secs:02d})"
+                if 20800 <= dist_m <= 21500 and dur_s > 3600:
+                    mins, secs = divmod(int(dur_s), 60)
+                    hrs, mins = divmod(mins, 60)
+                    hm_seconds = int(dur_s)
+                    source_label = f"Live Race ({act.get('activityName')}: {hrs}:{mins:02d}:{secs:02d})"
+                    found_race = True
+                elif is_race and 4800 <= dist_m <= 10500 and dur_s > 900:
+                    equiv_hm = int(dur_s * ((21097.5 / dist_m) ** 1.06))
+                    mins, secs = divmod(equiv_hm, 60)
+                    hrs, mins = divmod(mins, 60)
+                    hm_seconds = equiv_hm
+                    source_label = f"Scaled Race ({act.get('activityName')} -> {hrs}:{mins:02d}:{secs:02d})"
+                    found_race = True
+
+    telemetry["weekly_miles"] = f"{round(weekly_meters / 1609.34, 1)} mi"
+    telemetry["weekly_runs"] = weekly_run_count
 
     today_str = datetime.now().strftime("%Y-%m-%d")
     vo2_res = page.evaluate(
@@ -231,39 +282,205 @@ def fetch_live_fitness_baseline(page, prefix, headers):
             generic = vo2_data.get("generic") or {}
             vo2_val = generic.get("vo2MaxPreciseValue") or generic.get("vo2MaxValue")
             if vo2_val:
-                hm_sec = vo2max_to_hm_seconds(float(vo2_val))
-                return hm_sec, f"Watch VO2 Max ({vo2_val})"
+                telemetry["vo2_max"] = f"{round(float(vo2_val), 1)}"
+                if not found_race:
+                    hm_seconds = vo2max_to_hm_seconds(float(vo2_val))
+                    source_label = f"Watch VO2 Max ({telemetry['vo2_max']})"
         except Exception:
             pass
 
-    return 7070, "Default Baseline (1:57:50 HM)"
+    rhr_res = page.evaluate(
+        """async ({prefix, headers, todayStr}) => {
+            const reqHeaders = Object.assign({'Accept': 'application/json'}, headers);
+            const r = await fetch(`${prefix}/userstats-service/wellness/daily/${todayStr}?fromDate=${todayStr}&untilDate=${todayStr}`, {
+                method: 'GET', headers: reqHeaders, credentials: 'include'
+            });
+            return {status: r.status, body: await r.text()};
+        }""",
+        {"prefix": prefix, "headers": headers, "todayStr": today_str}
+    )
+    if rhr_res["status"] == 200 and rhr_res["body"]:
+        try:
+            rhr_data = json.loads(rhr_res["body"])
+            if isinstance(rhr_data, list) and rhr_data:
+                rhr_data = rhr_data[0]
+            rhr_val = rhr_data.get("restingHeartRate")
+            if rhr_val:
+                telemetry["rhr"] = f"{rhr_val} bpm"
+        except Exception:
+            pass
 
-def generate_pdf(training_plan):
+    return hm_seconds, source_label, telemetry
+
+def sanitize_pdf_text(text):
+    return (
+        str(text)
+        .replace("—", "-")
+        .replace("–", "-")
+        .replace("’", "'")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("→", "->")
+        .encode("latin-1", "replace")
+        .decode("latin-1")
+    )
+
+def generate_pdf(training_plan, sync_stats=None):
     meta = training_plan.get("_meta", {})
-    pdf = FPDF()
+    telemetry = meta.get("telemetry", {})
+    sync_stats = sync_stats or {}
+
+    hm_sec = meta.get("hm_seconds", 7070)
+    hrs, rem = divmod(hm_sec, 3600)
+    mins, secs = divmod(rem, 60)
+    proj_hm_str = f"{hrs}:{mins:02d}:{secs:02d}"
+
+    pdf = FPDF(orientation="P", unit="mm", format="Letter")
+    pdf.set_auto_page_break(auto=False)
     pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Dynamic Hybrid Plan - 3-Week Rolling Schedule", ln=True, align="C")
-    pdf.set_font("Arial", "I", 10)
-    pdf.cell(0, 6, f"Updated: {datetime.now().strftime('%b %d, %Y')} | Calibration: {meta.get('source', 'Baseline')}", ln=True, align="C")
-    pdf.cell(0, 6, "Runs -> Garmin Calendar (Auto-Updated Paces) | Lifts -> Drive PDF", ln=True, align="C")
-    pdf.ln(4)
+
+    # --- Top Executive Header Banner ---
+    pdf.set_fill_color(17, 24, 39)
+    pdf.rect(10, 10, 195.9, 24, "F")
+
+    pdf.set_xy(14, 13)
+    pdf.set_font("Helvetica", "B", 15)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(130, 7, "HYBRID PERFORMANCE & SUB-2:00 DASHBOARD", ln=False)
+
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(96, 165, 250)
+    pdf.cell(57.9, 7, f"SYNCED: {datetime.now().strftime('%b %d, %Y').upper()}", align="R", ln=True)
+
+    pdf.set_x(14)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(209, 213, 219)
+    cal_text = sanitize_pdf_text(f"Calibration: {meta.get('source', 'Baseline')}  |  4-Day Run + 3-Day Home Strength Split")
+    pdf.cell(187.9, 6, cal_text, ln=True)
+
+    # --- 4-Column Live Telemetry & KPI Strip ---
+    kpis = [
+        ("PROJECTED HM", proj_hm_str, "Goal: < 2:00:00", (22, 101, 52), (240, 253, 244)),
+        ("PLANNED / 7D ACTUAL", f"21.0 mi / {telemetry.get('weekly_miles', '0.0 mi')}", f"{telemetry.get('weekly_runs', 0)} runs logged (7d)", (30, 64, 175), (239, 246, 255)),
+        ("WATCH VO2 MAX", str(telemetry.get("vo2_max", "N/A")), "Garmin Forerunner 165", (107, 33, 168), (250, 245, 255)),
+        ("RESTING HR / SYNC", f"{telemetry.get('rhr', 'N/A')}", f"+{sync_stats.get('scheduled', 0)} new / {sync_stats.get('skipped', 0)} active", (146, 64, 14), (255, 251, 235)),
+    ]
+
+    card_w = 46.7
+    gap = 3.0
+    y_kpi = 37
+    for idx, (label, val, sub, accent_rgb, bg_rgb) in enumerate(kpis):
+        x = 10 + idx * (card_w + gap)
+        pdf.set_fill_color(*bg_rgb)
+        pdf.set_draw_color(*accent_rgb)
+        pdf.set_line_width(0.3)
+        pdf.rect(x, y_kpi, card_w, 19, "DF")
+
+        pdf.set_xy(x + 2.5, y_kpi + 2)
+        pdf.set_font("Helvetica", "B", 7)
+        pdf.set_text_color(*accent_rgb)
+        pdf.cell(card_w - 5, 4, sanitize_pdf_text(label), ln=True)
+
+        pdf.set_x(x + 2.5)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(17, 24, 39)
+        pdf.cell(card_w - 5, 6, sanitize_pdf_text(val), ln=True)
+
+        pdf.set_x(x + 2.5)
+        pdf.set_font("Helvetica", "", 7.5)
+        pdf.set_text_color(75, 85, 99)
+        pdf.cell(card_w - 5, 4, sanitize_pdf_text(sub), ln=True)
+
+    # --- Section Header ---
+    y_curr = 60
+    pdf.set_xy(10, y_curr)
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_text_color(31, 41, 55)
+    pdf.cell(120, 6, "WEEKLY ROLLING SCHEDULE (AUTO-SYNCED TO GARMIN CONNECT)", ln=False)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_text_color(107, 114, 128)
+    pdf.cell(75.9, 6, "Equipment: Power Rack, 225 lb Barbell, Landmine", align="R", ln=True)
+
+    y_curr += 7
+    row_h = 26.5
 
     for day, data in training_plan.items():
         if day.startswith("_"):
             continue
-        pdf.set_font("Arial", "B", 11)
-        pdf.cell(0, 6, f"{day} - {data['title']} ({data['type'].upper()})", ln=True)
-        pdf.set_font("Arial", "", 10)
-        for line in data["description"].split("\n"):
-            pdf.cell(0, 5, f"  {line}", ln=True)
-        if "target_pace" in data:
-            pdf.set_font("Arial", "I", 9)
-            pdf.cell(0, 5, f"  Target Pace: {data['target_pace']}", ln=True)
-        pdf.ln(3)
+        is_run = data["type"] == "run"
+
+        if is_run:
+            bg = (248, 250, 252)
+            border = (59, 130, 246)
+            badge_bg = (37, 99, 235)
+            badge_txt = "GARMIN RUN"
+        else:
+            bg = (252, 250, 248)
+            border = (217, 119, 6)
+            badge_bg = (180, 83, 9)
+            badge_txt = "HOME LIFT"
+
+        pdf.set_fill_color(*bg)
+        pdf.set_draw_color(209, 213, 219)
+        pdf.set_line_width(0.25)
+        pdf.rect(10, y_curr, 195.9, row_h, "DF")
+
+        # Left accent stripe
+        pdf.set_fill_color(*border)
+        pdf.rect(10, y_curr, 2.5, row_h, "F")
+
+        # Day + Badge
+        pdf.set_xy(15, y_curr + 2.5)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(17, 24, 39)
+        pdf.cell(26, 5.5, day.upper(), ln=False)
+
+        pdf.set_fill_color(*badge_bg)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("Helvetica", "B", 7)
+        pdf.cell(23, 5, badge_txt, align="C", fill=True, ln=False)
+
+        # Workout Title
+        pdf.set_xy(67, y_curr + 2.5)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(17, 24, 39)
+        pdf.cell(92, 5.5, sanitize_pdf_text(data["title"]), ln=False)
+
+        # Right-side Distance / Duration Pill
+        pdf.set_font("Helvetica", "B", 8.5)
+        pdf.set_text_color(*badge_bg)
+        pdf.cell(43.9, 5.5, sanitize_pdf_text(data.get("distance_label", "")), align="R", ln=True)
+
+        # Description line
+        pdf.set_xy(15, y_curr + 9.5)
+        pdf.set_font("Helvetica", "", 8.8)
+        pdf.set_text_color(55, 65, 81)
+        pdf.cell(187, 5, sanitize_pdf_text(data["description"]), ln=True)
+
+        # Target Pace / Status line
+        pdf.set_xy(15, y_curr + 16.5)
+        if is_run:
+            pdf.set_font("Helvetica", "B", 8.5)
+            pdf.set_text_color(29, 78, 216)
+            pdf.cell(125, 5, sanitize_pdf_text(f"Target Pace Zone: {data['target_pace']}"), ln=False)
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.set_text_color(22, 101, 52)
+            pdf.cell(62, 5, "Status: Pushed to Watch Calendar", align="R", ln=True)
+        else:
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.set_text_color(120, 53, 15)
+            pdf.cell(187, 5, "Focus: Force production, posterior chain resilience & injury prevention", ln=True)
+
+        y_curr += row_h + 2.2
+
+    # --- Footer ---
+    pdf.set_xy(10, 268)
+    pdf.set_font("Helvetica", "I", 7.5)
+    pdf.set_text_color(107, 114, 128)
+    pdf.cell(195.9, 4, "Automated via GitHub Actions Cloud Pipeline  |  Next Scheduled Recalibration: Sunday 8:00 PM AST", align="C")
 
     pdf.output(PDF_FILE)
-    print(f"PDF generated successfully (Calibration: {meta.get('source')}).")
+    print(f"Upgraded Dashboard PDF generated successfully (Calibration: {meta.get('source')}).")
 
 def run_pipeline():
     if not os.path.exists(STATE_FILE):
@@ -309,9 +526,9 @@ def run_pipeline():
             if not captured["prefix"]:
                 captured["prefix"] = "https://connect.garmin.com/gc-api"
 
-            hm_seconds, source_label = fetch_live_fitness_baseline(page, captured["prefix"], captured["headers"])
-            print(f"Fitness Calibration -> {source_label}")
-            training_plan = get_dynamic_plan(hm_seconds, source_label)
+            hm_seconds, source_label, telemetry = fetch_live_fitness_and_telemetry(page, captured["prefix"], captured["headers"])
+            print(f"Fitness Calibration -> {source_label} | Telemetry -> {telemetry}")
+            training_plan = get_dynamic_plan(hm_seconds, source_label, telemetry)
 
             existing_res = page.evaluate(
                 """async ({prefix, headers}) => {
@@ -419,7 +636,7 @@ def run_pipeline():
             print(f"Sync summary -> Newly scheduled: {scheduled_count} | Already on calendar (skipped): {skipped_count}")
             context.storage_state(path=STATE_FILE)
 
-            generate_pdf(training_plan)
+            generate_pdf(training_plan, sync_stats={"scheduled": scheduled_count, "skipped": skipped_count})
             if creds:
                 service = build("drive", "v3", credentials=creds)
                 folder_name = "training plans"
@@ -437,12 +654,16 @@ def run_pipeline():
                 media = MediaFileUpload(PDF_FILE, mimetype="application/pdf")
                 results = service.files().list(
                     q=f"name='Training_Plan_Week1.pdf' and '{folder_id}' in parents and trashed=false",
+                    orderBy="modifiedTime desc",
                     fields="files(id)"
                 ).execute()
                 files = results.get("files", [])
                 if files:
                     service.files().update(fileId=files[0]["id"], media_body=media).execute()
                     print(f"Updated Training_Plan_Week1.pdf inside '{folder_name}'.")
+                    for dup in files[1:]:
+                        service.files().update(fileId=dup["id"], body={"trashed": True}).execute()
+                        print("Moved duplicate Training_Plan_Week1.pdf to trash.")
                 else:
                     file_metadata = {"name": "Training_Plan_Week1.pdf", "parents": [folder_id]}
                     service.files().create(body=file_metadata, media_body=media, fields="id").execute()
