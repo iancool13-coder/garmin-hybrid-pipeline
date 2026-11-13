@@ -1,50 +1,3 @@
-            plan_titles = {
-                data["title"]
-                for day_name, data in training_plan.items()
-                if not day_name.startswith("_") and data["type"] == "run"
-            }
-
-            if existing_res["status"] == 200:
-                for w in json.loads(existing_res["body"]):
-                    w_name = w.get("workoutName", "")
-                    w_id = w.get("workoutId")
-                    if w_name in plan_titles or w_name.startswith("Sub-2:00 "):
-                        del_res = page.evaluate(
-                            """async ({prefix, headers, workoutId}) => {
-                                const reqHeaders = Object.assign({'Accept': 'application/json'}, headers);
-                                const r = await fetch(`${prefix}/workout-service/workout/${workoutId}`, {
-                                    method: 'DELETE', headers: reqHeaders, credentials: 'include'
-                                });
-                                return {status: r.status};
-                            }""",
-                            {"prefix": captured["prefix"], "headers": captured["headers"], "workoutId": w_id}
-                        )
-                        print(f"  [CLEANUP] Deleted old/duplicate workout '{w_name}' (ID: {w_id}) -> Status {del_res['status']}")
-            else:
-                print(f"Workouts list check returned status {existing_res['status']}")
-                return
-
-            workout_ids = {}
-            for day_name, data in training_plan.items():
-                if day_name.startswith("_") or data["type"] != "run":
-                    continue
-                title = data["title"]
-                payload = build_garmin_workout_payload(data)
-                create_res = page.evaluate(
-                    """async ({prefix, headers, payload}) => {
-                        const reqHeaders = Object.assign({'Accept': 'application/json', 'Content-Type': 'application/json'}, headers);
-                        const r = await fetch(`${prefix}/workout-service/workout`, {
-                            method: 'POST', headers: reqHeaders, credentials: 'include', body: JSON.stringify(payload)
-                        });
-                        return {status: r.status, body: await r.text()};
-                    }""",
-                    {"prefix": captured["prefix"], "headers": captured["headers"], "payload": payload}
-                )
-                if create_res["status"] in (200, 201):
-                    w_id = json.loads(create_res["body"]).get("workoutId")
-                    workout_ids[data["weekday"]] = w_id
-                    print(f"  [TEMPLATE] Created clean '{title}' (ID: {w_id}) -> {data['target_pace']}")
-
 import os
 import json
 import base64
@@ -690,7 +643,7 @@ def run_pipeline():
         )
         context = browser.new_context(
             storage_state=STATE_FILE,
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
         )
         page = context.new_page()
 
@@ -729,7 +682,7 @@ def run_pipeline():
             existing_res = page.evaluate(
                 """async ({prefix, headers}) => {
                     const reqHeaders = Object.assign({'Accept': 'application/json', 'Content-Type': 'application/json'}, headers);
-                    const r = await fetch(`${prefix}/workout-service/workouts?start=1&limit=50`, {
+                    const r = await fetch(`${prefix}/workout-service/workouts?start=1&limit=100`, {
                         method: 'GET', headers: reqHeaders, credentials: 'include'
                     });
                     return {status: r.status, body: await r.text()};
