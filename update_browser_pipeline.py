@@ -1,16 +1,17 @@
 import os
 import json
 import base64
-import pickle
 from datetime import datetime, timedelta
 from fpdf import FPDF
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from playwright.sync_api import sync_playwright
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATE_FILE = os.path.join(BASE_DIR, "garmin_state.json")
-TOKEN_FILE = os.path.join(BASE_DIR, "token.pickle")
+TOKEN_FILE = os.path.join(BASE_DIR, "token.json")
 PDF_FILE = os.path.join(BASE_DIR, "Training_Plan_Week1.pdf")
 
 # Decode GitHub Actions Secrets into local temp files when running in the cloud
@@ -24,11 +25,13 @@ if os.environ.get("GOOGLE_TOKEN_B64"):
 
 print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] >>> STARTING ADAPTIVE HYBRID PIPELINE <<<")
 
+creds = None
 if os.path.exists(TOKEN_FILE):
-    with open(TOKEN_FILE, "rb") as token:
-        creds = pickle.load(token)
-else:
-    creds = None
+    creds = Credentials.from_authorized_user_file(TOKEN_FILE)
+    if creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        with open(TOKEN_FILE, "w") as f:
+            f.write(creds.to_json())
 
 def min_km_to_ms(min_per_km):
     return round(1000.0 / (min_per_km * 60.0), 4)
